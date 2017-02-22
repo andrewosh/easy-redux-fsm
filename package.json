@@ -1,0 +1,24 @@
+{
+  "name": "easy-fsm",
+  "version": "1.0.0",
+  "description": "Define a FSM using an easy object schema",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewosh/easy-fsm.git"
+  },
+  "author": "Andrew Osheroff <andrewosh@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andrewosh/easy-fsm/issues"
+  },
+  "homepage": "https://github.com/andrewosh/easy-fsm#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "flow-bin": "^0.39.0",
+    "tape": "^4.6.3"
+  }
+}
