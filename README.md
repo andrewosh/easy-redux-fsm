@@ -1,76 +1,110 @@
-## easy-fsm
+## easy-redux-fsm
 Defining complex key bindings involves lots of annoying state/transition management
-that can quickly become unwieldy. This package lets you split up large FSMs into
-small subcomponents, and define state transitions using simple string matching, regexes,
-or dot accessor syntax.
+that can quickly become unwieldy. It's nice to define states and transition functions
+as a graph, in one place, but there doesn't seem to be a simple way to do that out-of
+-the-box with Redux.
 
-### Overview
+This package lets you split up large FSMs into smaller subcomponents, and define
+state transitions as reducers over your global state.
 
-All FSMs are implemented as Transform streams which can handle utf-8 encoded,
-newline-delimited input. As an example:
-
-`someMachine.write('a\nhello\nb\nc')` will process inputs 'a', 'hello', 'b', and
-'c' in that order.
+Best shown with an example...
 
 ### Beefy Example
-```
-const fsm = require('easy-fsm')
+We'll first define our FSM using the schema outlined below. Each state is a key
+in an object, with successor states defined as children. In order to jump around
+the tree, you can also define the next state using dot accessor syntax.
 
-const aMachine = fsm({
-  transition: function () {
-    // Do something when transitioning into machine 'a'
-    console.log('In state a')
-  },
-  // Transitions can be defined as strings or numbers, which will do exact matching
-  'b': {
-    transition: function (input) {
-      // Transitions can handle their input
-      console.log('In state ab, input is:', input) 
+```
+const fsm = require('easy-redux-fsm')
+
+const machine = fsm({
+  a: {
+    accepts: 'a',
+    action: function (state) {
+      // Do something when 'a' is encountered
     },
-    'a': {
-      transition: function (input, cb) {
-        // Transitions can be async
-        console.log('in state aba') 
-        return cb()
+    children: {
+      b: {
+        accepts: 'b',
+        action: function (state, input) {
+          // `input` will always be 'b'
+          console.log(input)
+        }
+        // If `next` isn't specified and there aren't any children,
+        // the FSM will terminate.
       },
-      // States can explicitly define the next state in property dot notation
-      next: 'a.b'
+      c: {
+        accepts: /[c-f]/
+        action: function (state, input) {
+          // `input` will be 'c', 'd', 'e', or 'f'
+        },
+        // If `next` is specified (in dot accessor syntax),
+        // the FSM will jump to that state.
+        next: 'a.b'
+      }
     }
   },
-  // Transitions can also be defined using a regex
-  /b*a/: {
-    transition: function (input) {
-      // The input here can be bja, bia, bca...
-    }
-    // If a state does not specify either a `next` property, or other substates,
-    // then the machine will terminate.
-  }
-  // You can directly include sub-FSMs as properties
-  'c': cMachine,
-  'd': dMachine
+  b: otherMachine
 })
 
-const cMachine = fsm({
-  transition: function () {
-    ... 
-  }
-})
-
-const dMachine = fsm({
-  transition: function () {
-    ...
-  }
-})
-
-aMachine.write('aaabbccdddd')
-aMachine.on('finish', function () {
-  // Called once all input events have been processed
+const otherMachine = fsm({
+  ...
 })
 ```
+The `fsm` function returns a "reducer-producer" (just a function that returns a reducer
+given the key of its corresponding state), and you can easily integrate it into your
+Redux pipeline. One nice way to do this is with the [reduce-reducers](https://github.com/acdlite/reduce-reducers) module:
 
-### Installation
 ```
-npm i easy-key-bindings --save
+const initialState = {
+  fsm: fsm.createEmpty(),
+  ...
+}
+
+const rootReducer = reduceReducers(
+  machine('fsm'),
+  ...
+)
+
+createStore(rootReducer, initialState)
+```
+
+To trigger a state transition, dispatch an `fsm.TRANSITION` action. Here's a complete
+example from start to finish:
+```
+const fsm = require('easy-redux-fsm')
+
+const machine = fsm({
+  a: {
+    accepts: /.*/,
+    action: function () {
+      console.log('Hey!')
+    },
+    next: fsm.START
+  }
+})
+
+const store = createStore(machine('fsm1'), { fsm1: fsm.createEmpty() })
+
+store.dispatch({
+  type: fsm.TRANSITION,
+  key: 'fsm1',
+  input: 'b'
+})
+// 'b' is logged
+
+store.dispatch({
+  type: fsm.TRANSITION,
+  key: 'fsm1',
+  input: 'blahblah'
+})
+// 'blahblah' is logged
+
+```
+
+### Install
+```
+npm i easy-redux-fsm --save
 ```
 
 ### API

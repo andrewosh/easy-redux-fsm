@@ -20,5 +20,8 @@
     "chai": "^3.5.0",
     "flow-bin": "^0.39.0",
     "tape": "^4.6.3"
+  },
+  "dependencies": {
+    "through2": "^2.0.3"
   }
 }
