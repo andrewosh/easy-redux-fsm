@@ -14,29 +14,37 @@ We'll first define our FSM using the schema outlined below. Each state is a key
 in an object, with successor states defined as children. In order to jump around
 the tree, you can also define the next state using dot accessor syntax.
 
+The state machine is defined using arrays instead of maps because inputs are checked
+against the states' `accepts` values in order.
+
 ```
 const fsm = require('easy-redux-fsm')
 
-const machine = fsm({
-  a: {
+const machine = fsm([
+  {
+    name: 'A',
     accepts: 'a',
     action: function (state) {
       // Do something when 'a' is encountered
     },
-    children: {
-      b: {
+    children: [
+      {
+        name: 'B',
         accepts: 'b',
-        action: function (state, input) {
+        action: function (getState, dispatch, input) {
           // `input` will always be 'b'
           console.log(input)
         }
         // If `next` isn't specified and there aren't any children,
         // the FSM will terminate.
       },
-      c: {
+      {
+        name: 'CThroughF',
         accepts: /[c-f]/
-        action: function (state, input) {
+        action: function (getState, dispatch, input) {
           // `input` will be 'c', 'd', 'e', or 'f'
+          // `action` can be asynchronous
+          return new Promise(...)
         },
         // If `next` is specified (in dot accessor syntax),
         // the FSM will jump to that state.
@@ -44,57 +52,61 @@ const machine = fsm({
       }
     }
   },
-  b: otherMachine
-})
+  {
+    name: 'B',
+    fsm: otherMachineDescription
+  }
+])
 
-const otherMachine = fsm({
+const otherMachineDescription = [
   ...
-})
+]
 ```
-The `fsm` function returns a "reducer-producer" (just a function that returns a reducer
-given the key of its corresponding state), and you can easily integrate it into your
-Redux pipeline. One nice way to do this is with the [reduce-reducers](https://github.com/acdlite/reduce-reducers) module:
+The `fsm` function returns an action creator that you can easily integrate into your
+Redux pipeline:
+```
+const machine = fsm('fsm1', machineDescription, options)
 
-```
 const initialState = {
-  fsm: fsm.createEmpty(),
+  fsm1: machine.createEmpty(),
   ...
 }
 
-const rootReducer = reduceReducers(
-  machine('fsm'),
+const rootReducer = combineReducers(
+  fsm1: machine.reducer(),
   ...
 )
 
-createStore(rootReducer, initialState)
+createStore(rootReducer, initialState, applyMiddlware(machine.middleware()))
 ```
 
-To trigger a state transition, dispatch an `fsm.TRANSITION` action. Here's a complete
-example from start to finish:
+To trigger a state transition, dispatch an `fsm.actions.TRANSITION` action. 
+Here's a complete example from start to finish:
 ```
 const fsm = require('easy-redux-fsm')
 
-const machine = fsm({
-  a: {
+const machine = fsm([
+  {
+    name: 'A'
     accepts: /.*/,
     action: function () {
       console.log('Hey!')
     },
-    next: fsm.START
+    next: fsm.states.START
   }
-})
+])
 
 const store = createStore(machine('fsm1'), { fsm1: fsm.createEmpty() })
 
 store.dispatch({
-  type: fsm.TRANSITION,
+  type: fsm.actions.TRANSITION,
   key: 'fsm1',
   input: 'b'
 })
 // 'b' is logged
 
 store.dispatch({
-  type: fsm.TRANSITION,
+  type: fsm.actions.TRANSITION,
   key: 'fsm1',
   input: 'blahblah'
 })
