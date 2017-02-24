@@ -1,31 +1,38 @@
 {
-  "name": "easy-fsm",
+  "name": "easy-redux-fsm",
   "version": "1.0.0",
-  "description": "Define a FSM using an easy object schema",
-  "main": "index.js",
+  "description": "Define a FSM for Redux using an easy object schema",
+  "main": "build/index.js",
   "scripts": {
-    "test": "standard-flow && tape test/*.js"
+    "clean": "rimraf build/",
+    "build": "npm run clean && flow-remove-types --out-dir build/ . --all",
+    "format": "standard-flow index.js test/*.js",
+    "test": "npm run build && npm run format && tape build/test/*.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andrewosh/easy-fsm.git"
+    "url": "git+https://github.com/andrewosh/easy-redux-fsm.git"
   },
   "author": "Andrew Osheroff <andrewosh@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/andrewosh/easy-fsm/issues"
+    "url": "https://github.com/andrewosh/easy-redux-fsm/issues"
   },
-  "homepage": "https://github.com/andrewosh/easy-fsm#readme",
+  "homepage": "https://github.com/andrewosh/easy-redux-fsm#readme",
   "devDependencies": {
     "chai": "^3.5.0",
     "flow-bin": "^0.39.0",
+    "flow-remove-types": "^1.2.0",
     "reduce-reducers": "^0.1.2",
     "redux": "^3.6.0",
+    "rimraf": "^2.6.1",
     "standard-flow": "^1.0.0",
     "tape": "^4.6.3"
   },
   "dependencies": {
-    "immutable": "^3.8.1",
-    "through2": "^2.0.3"
+    "immutable": "^3.8.1"
+  },
+  "peerDependencies": {
+    "redux": "^3.6.0"
   }
 }

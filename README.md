@@ -85,7 +85,7 @@ Here's a complete example from start to finish:
 ```
 const fsm = require('easy-redux-fsm')
 
-const machine = fsm([
+const machine = fsm('fsm1', [
   {
     name: 'A'
     accepts: /.*/,
@@ -96,7 +96,11 @@ const machine = fsm([
   }
 ])
 
-const store = createStore(machine('fsm1'), { fsm1: fsm.createEmpty() })
+const store = createStore(
+  combineReducers({ fsm1: machine.reducer() }),
+  { fsm1: fsm.createEmpty() },
+  applyMiddleware(machine.middleware())
+)
 
 store.dispatch({
   type: fsm.actions.TRANSITION,

@@ -13,11 +13,12 @@ type FSMOptions = {
   cancelOnInput?: Boolean
 }
 type Node = {
-  _fullName: ?string,
+  _fullName?: ?string,
   name: string,
-  accepts: string | RegExp | (x: string) => Boolean,
   action: (state: ?any, input: ?string) => ?Promise<any>,
-  children: ?[Node]
+  accepts?: string | RegExp | (x: string) => Boolean,
+  children?: [Node],
+  next?: string
 }
 
 // States
@@ -42,7 +43,8 @@ const ACTIONS = {
  * @param {object} description - a tree of states that define the FSM
  * @param {object} options - options object
  */
-function fsm (key: string, description: FSMDescription, options: FSMOptions) {
+function FSM (key: string, description: FSMDescription, options?: FSMOptions) {
+  if (!(this instanceof FSM)) return new FSM(key, description, options)
   this.key = key
   this.options = options || {}
   this.description = description
@@ -56,11 +58,18 @@ function fsm (key: string, description: FSMDescription, options: FSMOptions) {
  * This method will also mutate the description object so that all nodes contain
  * an expanded name property with their complete prefixes.
  */
-fsm.prototype._buildIndex = function () {
-  this.index = Object.assign({}, STATES)
+FSM.prototype._buildIndex = function () {
+  this.index = {}
+  this.index[STATES.START] = {
+    name: STATES.START,
+    children: this.description
+  }
+  this.index[STATES.END] = {
+    name: STATES.END
+  }
 
   const self = this
-  function _indexNode (prefix: string, node: Node) {
+  function _indexNode (prefix: ?string, node: Node) {
     const newPrefix = (prefix) ? (prefix + '.' + node.name) : node.name
     node._fullName = newPrefix
     self.index[newPrefix] = node
@@ -72,13 +81,15 @@ fsm.prototype._buildIndex = function () {
     }
   }
   // All top-level states are successors to START.
-  this.description.forEach(STATES.START, _indexNode)
+  this.description.forEach(function (node) {
+    _indexNode(null, node)
+  })
 }
 
 /**
- * Create a transition action.
+ * Create a transitioned action signifying that a transition has completed.
  */
-fsm.prototype._transition = function (stateName) {
+FSM._transitioned = function (stateName) {
   return {
     type: ACTIONS._TRANSITIONED,
     key: this.key,
@@ -89,7 +100,7 @@ fsm.prototype._transition = function (stateName) {
 /**
  * Create a transitioning action signifying that an async action is in progress.
  */
-fsm.prototype._transitioning = function () {
+FSM._transitioning = function () {
   return {
     type: ACTIONS._TRANSITIONING,
     key: this.key
@@ -99,7 +110,7 @@ fsm.prototype._transitioning = function () {
 /**
  * Buffer input for processing once the in-progress async action is complete.
  */
-fsm.prototype._updateBuffer = function (buffer) {
+FSM._updateBuffer = function (buffer) {
   return {
     type: ACTIONS._UPDATE_BUFFER,
     key: this.key,
@@ -107,27 +118,29 @@ fsm.prototype._updateBuffer = function (buffer) {
   }
 }
 
-fsm.prototype._handleInput = function (getState, dispatch, key, input) {
+FSM.prototype._handleInput = function (getState, dispatch, key, input) {
   function _findMatchingChild (children: [Node], input: string): ?Node {
     if (!children || children.length === 0) {
       return null
     }
-    children.forEach(function (child) {
+    for (var i = 0; i < children.length; i++) {
+      const child = children[i]
       const accepts = child.accepts
+      if (!accepts) return child
       if ((typeof accepts === 'string' && accepts === input) ||
           (typeof accepts === 'function' && accepts(input)) ||
           (accepts instanceof RegExp && accepts.test(input))) {
         return child
       }
-    })
+    }
     return null
   }
 
-  const nodePath = getState()[key]
+  const nodePath = getState()[key].stateName
   const node= this.index[nodePath]
 
   if (!nodePath) {
-    throw new Error('Attempted to read the value of nonexistent state machine: ' + key)
+    throw new Error('Attempting to read the value of nonexistent state machine: ' + key)
   }
   if (node.name === STATES.END) {
     const warning = 'State machine is in the END state and is not processing inputs.'
@@ -136,14 +149,20 @@ fsm.prototype._handleInput = function (getState, dispatch, key, input) {
 
   // If a state doesn't specify any successors, immediately transition to END.
   if (!node.next && (!node.children || node.children.length === 0)) {
-    return this._transition(STATES.END)
+    return FSM._transition(STATES.END)
   }
   // If a state specifies an invalid successor, immediately transition to END.
   if (node.next && !this.index[node.next]) {
-    return this._transition(STATES.END)
+    console.warn('Attempting to transition into an invalid state:', node.next)
+    return FSM._transition(STATES.END)
   }
 
+  console.log('node.next:', node.next)
+  console.log('matching children:', _findMatchingChild(node.children, input))
+  console.log('children:', node.children)
+
   const successor = (node.next) ? node.next : _findMatchingChild(node.children, input)
+  console.log('successor:', successor)
   if (!successor) {
     throw new Error('Could not find a valid successor state for input: ' + input)
   }
@@ -153,22 +172,42 @@ fsm.prototype._handleInput = function (getState, dispatch, key, input) {
     if (!(promise instanceof Promise)) {
       throw new Error('Action must return null or a Promise.')
     }
-    const self = this
     promise.then(function (res) {
-      dispatch(self._transitioned(successor._fullName))
+      dispatch(FSM._transitioned(successor._fullName))
     })
     promise.catch(function (err) {
       // TODO: handle error?
-      dispatch(self._transitioned(successor._fullName))
+      console.error(err)
+      dispatch(FSM._transitioned(successor._fullName))
     })
-    return this._transitioning() 
+    return FSM._transitioning()
   }
-  return self._transitioned(successor._fullName)
+  return FSM._transitioned(successor._fullName)
 }
 
-fsm.prototype.reducer = function () {
+/**
+ * Creates an action to send input to the FSM specified by `key`.
+ *
+ * @param {string} key - the FSM key
+ * @param {string} input - an input string
+ */
+FSM.handleInput = function (key, input) {
+  return {
+    type: ACTIONS.HANDLE_INPUT,
+    key: key,
+    input: input
+  }
+}
+
+/**
+ * Create a Redux reducer for updating a state machine's internal state.
+ */
+FSM.prototype.reducer = function () {
   const self = this
   return function (state, action) {
+    if (typeof state === 'undefined') {
+      return self.createEmpty()
+    }
     if (action.key !== self.key) {
       return state
     }
@@ -186,7 +225,10 @@ fsm.prototype.reducer = function () {
   }
 }
 
-fsm.prototype.createEmpty = function (): FSMState {
+/**
+ * Creates an empty Redux state.
+ */
+FSM.prototype.createEmpty = function (): FSMState {
   return new Immutable.Record({
     stateName: STATES.START,
     transitioning: false,
@@ -194,35 +236,44 @@ fsm.prototype.createEmpty = function (): FSMState {
   })()
 }
 
-fsm.prototype.middleware = function () {
+/**
+ * Creates Redux middleware that intercepts actions for processing by a state
+ * machine.
+ */
+FSM.prototype.middleware = function () {
   const self = this
   return store => next => action => {
+    console.log('handling action:', action)
     if (action.key !== self.key) {
       return next(action)
     }
+    const fsmState = store.getState()[self.key]
+    assert(fsmState)
     switch (action.type) {
       case ACTIONS.HANDLE_INPUT:
-        const fsmState = store.getState()[self.key]
-        assert(action.input && fsmState)
-        if (fsmState.transitioning) { 
-          return next(self._updateBuffer(fsmState.inputBuffer.unshift(action.input)))
+        assert(action.input)
+        if (fsmState.transitioning) {
+          return next(FSM._updateBuffer(
+                      fsmState.inputBuffer.unshift(action.input)))
         }
-        return next(self._handleInput(store.getState, store.dispatch, action.input))
+        return next(self._handleInput(
+                    store.getState, store.dispatch, action.key, action.input))
       case ACTIONS._TRANSITIONED:
         next(action)
-        const fsmState = store.getState()[self.key]
-        assert(fsmState)
-        const nextInput = fsmState.inputBuffer.get(0)  
+        const nextInput = fsmState.inputBuffer.get(0)
         if (nextInput) {
-          next(self._updateBuffer(fsmState.inputBuffer.shift()))
-          return next(self._handleInput(store.getState, store.dispatch, nextInput))
+          next(FSM._updateBuffer(fsmState.inputBuffer.shift()))
+          return next(self._handleInput(
+                      store.getState, store.dispatch, action.key, nextInput))
         }
+        break
       default:
         return next(action)
+    }
   }
 }
 
-fsm.prototype.states = STATES
-fsm.prototype.actions = ACTIONS
+FSM.states = STATES
+FSM.actions = ACTIONS
 
-module.exports = exports
+module.exports = FSM
