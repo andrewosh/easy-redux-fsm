@@ -25,6 +25,7 @@
     "flow-remove-types": "^1.2.0",
     "reduce-reducers": "^0.1.2",
     "redux": "^3.6.0",
+    "redux-logger": "^2.8.1",
     "rimraf": "^2.6.1",
     "standard-flow": "^1.0.0",
     "tape": "^4.6.3"

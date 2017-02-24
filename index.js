@@ -89,7 +89,7 @@ FSM.prototype._buildIndex = function () {
 /**
  * Create a transitioned action signifying that a transition has completed.
  */
-FSM._transitioned = function (stateName) {
+FSM.prototype._transitioned = function (stateName) {
   return {
     type: ACTIONS._TRANSITIONED,
     key: this.key,
@@ -100,7 +100,7 @@ FSM._transitioned = function (stateName) {
 /**
  * Create a transitioning action signifying that an async action is in progress.
  */
-FSM._transitioning = function () {
+FSM.prototype._transitioning = function () {
   return {
     type: ACTIONS._TRANSITIONING,
     key: this.key
@@ -110,11 +110,11 @@ FSM._transitioning = function () {
 /**
  * Buffer input for processing once the in-progress async action is complete.
  */
-FSM._updateBuffer = function (buffer) {
+FSM.prototype._updateBuffer = function (buffer) {
   return {
     type: ACTIONS._UPDATE_BUFFER,
     key: this.key,
-    inputBuffer: buffer
+    buffer: buffer
   }
 }
 
@@ -138,7 +138,6 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
 
   const nodePath = getState()[key].stateName
   const node= this.index[nodePath]
-
   if (!nodePath) {
     throw new Error('Attempting to read the value of nonexistent state machine: ' + key)
   }
@@ -149,19 +148,19 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
 
   // If a state doesn't specify any successors, immediately transition to END.
   if (!node.next && (!node.children || node.children.length === 0)) {
-    return FSM._transition(STATES.END)
+    return this._transition(STATES.END)
   }
   // If a state specifies an invalid successor, immediately transition to END.
   if (node.next && !this.index[node.next]) {
     console.warn('Attempting to transition into an invalid state:', node.next)
-    return FSM._transition(STATES.END)
+    return this._transition(STATES.END)
   }
 
   console.log('node.next:', node.next)
   console.log('matching children:', _findMatchingChild(node.children, input))
   console.log('children:', node.children)
 
-  const successor = (node.next) ? node.next : _findMatchingChild(node.children, input)
+  const successor = (node.next) ? this.index[node.next] : _findMatchingChild(node.children, input)
   console.log('successor:', successor)
   if (!successor) {
     throw new Error('Could not find a valid successor state for input: ' + input)
@@ -172,17 +171,18 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     if (!(promise instanceof Promise)) {
       throw new Error('Action must return null or a Promise.')
     }
+    const self = this
     promise.then(function (res) {
-      dispatch(FSM._transitioned(successor._fullName))
+      dispatch(self._transitioned(successor._fullName))
     })
     promise.catch(function (err) {
       // TODO: handle error?
       console.error(err)
-      dispatch(FSM._transitioned(successor._fullName))
+      dispatch(self._transitioned(successor._fullName))
     })
-    return FSM._transitioning()
+    return this._transitioning()
   }
-  return FSM._transitioned(successor._fullName)
+  return this._transitioned(successor._fullName)
 }
 
 /**
@@ -253,7 +253,8 @@ FSM.prototype.middleware = function () {
       case ACTIONS.HANDLE_INPUT:
         assert(action.input)
         if (fsmState.transitioning) {
-          return next(FSM._updateBuffer(
+          console.log('fsmState:', fsmState)
+          return next(self._updateBuffer(
                       fsmState.inputBuffer.unshift(action.input)))
         }
         return next(self._handleInput(
@@ -262,7 +263,7 @@ FSM.prototype.middleware = function () {
         next(action)
         const nextInput = fsmState.inputBuffer.get(0)
         if (nextInput) {
-          next(FSM._updateBuffer(fsmState.inputBuffer.shift()))
+          next(self._updateBuffer(fsmState.inputBuffer.shift()))
           return next(self._handleInput(
                       store.getState, store.dispatch, action.key, nextInput))
         }

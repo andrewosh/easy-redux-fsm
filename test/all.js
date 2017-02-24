@@ -49,3 +49,33 @@ test('single machine, single state, synchronous write', function (t) {
   t.equal(desiredInvocations, numInvocations)
   t.end()
 })
+
+test('single machine, single state, asynchronous write', function (t) {
+  const desiredInvocations = 3
+  var numInvocations = 0
+  const description = [{
+    name: 'StateA',
+    action: function () {
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () {
+          numInvocations++
+          resolve()
+        }, 100)
+      })
+    },
+    next: 'StateA'
+  }]
+  const store = createTestStores([
+    {
+      key: 'fsm1',
+      description: description
+    }
+  ])
+  for (var i = 0; i < desiredInvocations; i++) {
+    store.dispatch(fsm.handleInput('fsm1', 'hello!'))
+  }
+  setTimeout(function () {
+    t.equal(desiredInvocations, numInvocations)
+    t.end()
+  }, 400)
+})
