@@ -243,3 +243,79 @@ test('multiple machines, single state, synchronous', function (t) {
   t.equal(desiredInvocations, numInvocations)
   t.end()
 })
+
+test('multiple machines, multiple states, asynchronous', function (t) {
+  const desiredOutput = 'ab'
+  var output1 = ''
+  var output2 = ''
+  const description1 = [{
+    name: 'StateA',
+    action: function () {
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () {
+          output1 += 'a'
+          resolve()
+        }, 100)
+      })
+    },
+    next: 'StateB'
+  },
+    {
+      name: 'StateB',
+      action: function () {
+        return new Promise(function (resolve, reject) {
+          setTimeout(function () {
+            output1 += 'b'
+            resolve()
+          }, 100)
+        })
+      },
+      next: 'StateC'
+    }
+  ]
+  const description2 = [{
+    name: 'StateA',
+    action: function () {
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () {
+          output2 += 'a'
+          resolve()
+        }, 100)
+      })
+    },
+    next: 'StateB'
+  },
+    {
+      name: 'StateB',
+      action: function () {
+        return new Promise(function (resolve, reject) {
+          setTimeout(function () {
+            output2 += 'b'
+            resolve()
+          }, 100)
+        })
+      },
+      next: 'StateC'
+    }
+  ]
+
+  const store = createTestStores([
+    {
+      key: 'fsm1',
+      description: description1
+    },
+    {
+      key: 'fsm2',
+      description: description2
+    }
+  ])
+  store.dispatch(fsm.handleInput('fsm1', 'hello!'))
+  store.dispatch(fsm.handleInput('fsm2', 'hello!'))
+  store.dispatch(fsm.handleInput('fsm1', 'hello!'))
+  store.dispatch(fsm.handleInput('fsm2', 'hello!'))
+  setTimeout(function () {
+    t.equal(output1, desiredOutput)
+    t.equal(output2, desiredOutput)
+    t.end()
+  }, 400)
+})

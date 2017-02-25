@@ -126,8 +126,6 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     for (var i = 0; i < children.length; i++) {
       const child = children[i]
       const accepts = child.accepts
-      console.log('accepts:', accepts)
-      console.log('input:', input)
       if (!accepts) return child
       if ((typeof accepts === 'string' && accepts === input) ||
           (typeof accepts === 'function' && accepts(input)) ||
@@ -158,12 +156,7 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     return this._transition(FSM.States.END)
   }
 
-  console.log('node.next:', node.next)
-  console.log('matching children:', _findMatchingChild(node.children, input))
-  console.log('children:', node.children)
-
   const successor = (node.next) ? this.index[node.next] : _findMatchingChild(node.children, input)
-  console.log('successor:', successor)
   if (!successor) {
     throw new Error('Could not find a valid successor state for input: ' + input)
   }
@@ -184,7 +177,6 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     })
     return this._transitioning()
   }
-  console.log('toning...')
   dispatch(this._transitioned(successor._fullName))
 }
 
@@ -246,7 +238,6 @@ FSM.prototype.createEmpty = function (): FSMState {
 FSM.prototype.middleware = function () {
   const self = this
   return store => next => action => {
-    console.log('handling action:', action)
     if (action.key !== self.key) {
       return next(action)
     }
@@ -257,7 +248,6 @@ FSM.prototype.middleware = function () {
       case FSM.Actions.HANDLE_INPUT:
         assert(action.input)
         if (fsmState.transitioning) {
-          console.log('fsmState:', fsmState)
           return next(self._updateBuffer(
                       fsmState.inputBuffer.unshift(action.input)))
         }
@@ -269,8 +259,6 @@ FSM.prototype.middleware = function () {
       case FSM.Actions._TRANSITIONED:
         next(action)
         const nextInput = fsmState.inputBuffer.last()
-        console.log('TRANSITIONED and inputBuffer:', fsmState.inputBuffer)
-        console.log('TRANSITIONED and next input:', nextInput)
         if (nextInput) {
           next(self._updateBuffer(fsmState.inputBuffer.pop()))
           const nextAction = self._handleInput(
