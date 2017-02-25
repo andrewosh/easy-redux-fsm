@@ -1,4 +1,5 @@
 # easy-redux-fsm
+[![CircleCI](https://circleci.com/gh/andrewosh/easy-redux-fsm/tree/master.svg?style=svg)](https://circleci.com/gh/andrewosh/easy-redux-fsm/tree/master)
 > Specify action creators as a state/transition graph
 
 ## Overview
@@ -12,7 +13,7 @@ state transitions as action creators.
 
 Best shown with an example...
 
-### Beefy Example
+## Beefy Examples
 We'll first define our FSM using the schema outlined below. Each state is a key
 in an object, with successor states defined as children. In order to jump around
 the tree, you can also define the next state using dot accessor syntax.
@@ -121,12 +122,12 @@ store.dispatch({
 
 ```
 
-### Install
+## Install
 ```
 npm i easy-redux-fsm --save
 ```
 
-### API
+## API
 #### `new FSM(key, description)`
 `key` - a unique identifier for this state machine
 `description` - a machine description that defines states as objects
@@ -152,7 +153,7 @@ actions. Must be applied  with `applyMiddleware(middleware)`.
 #### `fsm.createEmpty()`
 Creates an empty Redux state for the FSM.
 
-### License
+## License
 MIT
 
 
