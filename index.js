@@ -22,13 +22,13 @@ type Node = {
 }
 
 // States
-const STATES = {
+const States = {
   START: 'START',
   END: 'END'
 }
 
 // Actions
-const ACTIONS = {
+const Actions = {
   _TRANSITIONED: 'TRANSITIONED',
   _TRANSITIONING: 'TRANSITIONING',
   _UPDATE_BUFFER: 'UPDATE_BUFFER',
@@ -60,12 +60,12 @@ function FSM (key: string, description: FSMDescription, options?: FSMOptions) {
  */
 FSM.prototype._buildIndex = function () {
   this.index = {}
-  this.index[STATES.START] = {
-    name: STATES.START,
+  this.index[FSM.States.START] = {
+    name: FSM.States.START,
     children: this.description
   }
-  this.index[STATES.END] = {
-    name: STATES.END
+  this.index[FSM.States.END] = {
+    name: FSM.States.END
   }
 
   const self = this
@@ -91,7 +91,7 @@ FSM.prototype._buildIndex = function () {
  */
 FSM.prototype._transitioned = function (stateName) {
   return {
-    type: ACTIONS._TRANSITIONED,
+    type: FSM.Actions._TRANSITIONED,
     key: this.key,
     nextState: stateName
   }
@@ -102,7 +102,7 @@ FSM.prototype._transitioned = function (stateName) {
  */
 FSM.prototype._transitioning = function () {
   return {
-    type: ACTIONS._TRANSITIONING,
+    type: FSM.Actions._TRANSITIONING,
     key: this.key
   }
 }
@@ -112,7 +112,7 @@ FSM.prototype._transitioning = function () {
  */
 FSM.prototype._updateBuffer = function (buffer) {
   return {
-    type: ACTIONS._UPDATE_BUFFER,
+    type: FSM.Actions._UPDATE_BUFFER,
     key: this.key,
     buffer: buffer
   }
@@ -126,6 +126,8 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     for (var i = 0; i < children.length; i++) {
       const child = children[i]
       const accepts = child.accepts
+      console.log('accepts:', accepts)
+      console.log('input:', input)
       if (!accepts) return child
       if ((typeof accepts === 'string' && accepts === input) ||
           (typeof accepts === 'function' && accepts(input)) ||
@@ -141,19 +143,19 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
   if (!nodePath) {
     throw new Error('Attempting to read the value of nonexistent state machine: ' + key)
   }
-  if (node.name === STATES.END) {
+  if (node.name === FSM.States.END) {
     const warning = 'State machine is in the END state and is not processing inputs.'
     return console.warn(warning)
   }
 
   // If a state doesn't specify any successors, immediately transition to END.
   if (!node.next && (!node.children || node.children.length === 0)) {
-    return this._transition(STATES.END)
+    return this._transition(FSM.States.END)
   }
   // If a state specifies an invalid successor, immediately transition to END.
   if (node.next && !this.index[node.next]) {
     console.warn('Attempting to transition into an invalid state:', node.next)
-    return this._transition(STATES.END)
+    return this._transition(FSM.States.END)
   }
 
   console.log('node.next:', node.next)
@@ -182,7 +184,8 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     })
     return this._transitioning()
   }
-  return this._transitioned(successor._fullName)
+  console.log('toning...')
+  dispatch(this._transitioned(successor._fullName))
 }
 
 /**
@@ -193,7 +196,7 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
  */
 FSM.handleInput = function (key, input) {
   return {
-    type: ACTIONS.HANDLE_INPUT,
+    type: FSM.Actions.HANDLE_INPUT,
     key: key,
     input: input
   }
@@ -212,12 +215,12 @@ FSM.prototype.reducer = function () {
       return state
     }
     switch (action.type) {
-      case ACTIONS._TRANSITIONED:
+      case FSM.Actions._TRANSITIONED:
         return state.set('stateName', action.nextState)
                     .set('transitioning', false)
-      case ACTIONS._TRANSITIONING:
+      case FSM.Actions._TRANSITIONING:
         return state.set('transitioning', true)
-      case ACTIONS._UPDATE_BUFFER:
+      case FSM.Actions._UPDATE_BUFFER:
         return state.set('inputBuffer', action.buffer)
       default:
         return state
@@ -230,7 +233,7 @@ FSM.prototype.reducer = function () {
  */
 FSM.prototype.createEmpty = function (): FSMState {
   return new Immutable.Record({
-    stateName: STATES.START,
+    stateName: FSM.States.START,
     transitioning: false,
     inputBuffer: new Immutable.List()
   })()
@@ -250,31 +253,39 @@ FSM.prototype.middleware = function () {
     const fsmState = store.getState()[self.key]
     assert(fsmState)
     switch (action.type) {
-      case ACTIONS.HANDLE_INPUT:
+
+      case FSM.Actions.HANDLE_INPUT:
         assert(action.input)
         if (fsmState.transitioning) {
           console.log('fsmState:', fsmState)
           return next(self._updateBuffer(
                       fsmState.inputBuffer.unshift(action.input)))
         }
-        return next(self._handleInput(
-                    store.getState, store.dispatch, action.key, action.input))
-      case ACTIONS._TRANSITIONED:
+        const nextAction = self._handleInput(
+                    store.getState, store.dispatch, action.key, action.input)
+        if (nextAction) return next(nextAction)
+        break
+
+      case FSM.Actions._TRANSITIONED:
         next(action)
-        const nextInput = fsmState.inputBuffer.get(0)
+        const nextInput = fsmState.inputBuffer.last()
+        console.log('TRANSITIONED and inputBuffer:', fsmState.inputBuffer)
+        console.log('TRANSITIONED and next input:', nextInput)
         if (nextInput) {
-          next(self._updateBuffer(fsmState.inputBuffer.shift()))
-          return next(self._handleInput(
-                      store.getState, store.dispatch, action.key, nextInput))
+          next(self._updateBuffer(fsmState.inputBuffer.pop()))
+          const nextAction = self._handleInput(
+                      store.getState, store.dispatch, action.key, nextInput)
+          if (nextAction) return next(nextAction)
         }
         break
+
       default:
         return next(action)
     }
   }
 }
 
-FSM.states = STATES
-FSM.actions = ACTIONS
+FSM.States = States
+FSM.Actions = Actions
 
 module.exports = FSM
