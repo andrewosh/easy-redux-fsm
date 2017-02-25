@@ -1,11 +1,14 @@
-## easy-redux-fsm
+# easy-redux-fsm
+> Specify action creators as a state/transition graph
+
+## Overview
 Defining complex key bindings involves lots of annoying state/transition management
-that can quickly become unwieldy. It's nice to define states and transition functions
-as a graph, in one place, but there doesn't seem to be a simple way to do that out-of
--the-box with Redux.
+that can quickly become unwieldy in Redux. It's nice to define states and 
+transition functions as a graph, in one place, but there doesn't seem to be a 
+simple way to do that out-of-the-box.
 
 This package lets you split up large FSMs into smaller subcomponents, and define
-state transitions as reducers over your global state.
+state transitions as action creators.
 
 Best shown with an example...
 
@@ -124,8 +127,30 @@ npm i easy-redux-fsm --save
 ```
 
 ### API
-```
-```
+#### `new FSM(key, description)`
+`key` - a unique identifier for this state machine
+`description` - a machine description that defines states as objects
+  with the above.
+
+Constructs a new FSM with ID `key`, described by `description` (see the beefy
+  example for a complete description of the available properties)
+
+#### `fsm.handleInput(key, input)`
+`key` {string} - the state machine that should handle input
+`input` {string} - the input that will be passed to the FSM's transition function
+
+Creates an action that can be dispatched to a Redux store to pass `input`
+to the FSM specified by `key`.
+
+#### `fsm.reducer()`
+Makes a reducer function that can be used in `createStore`
+
+#### `fsm.middleware()`
+Makes a middleware function that will handle a state machine's internal
+actions. Must be applied  with `applyMiddleware(middleware)`.
+
+#### `fsm.createEmpty()`
+Creates an empty Redux state for the FSM.
 
 ### License
 MIT

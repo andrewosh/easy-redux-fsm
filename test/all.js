@@ -1,4 +1,3 @@
-// @flow
 const test = require('tape')
 const redux = require('redux')
 
