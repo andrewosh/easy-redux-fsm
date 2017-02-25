@@ -243,6 +243,7 @@ FSM.prototype.middleware = function () {
     }
     const fsmState = store.getState()[self.key]
     assert(fsmState)
+    var nextAction = null
     switch (action.type) {
 
       case FSM.Actions.HANDLE_INPUT:
@@ -251,7 +252,7 @@ FSM.prototype.middleware = function () {
           return next(self._updateBuffer(
                       fsmState.inputBuffer.unshift(action.input)))
         }
-        const nextAction = self._handleInput(
+        nextAction = self._handleInput(
                     store.getState, store.dispatch, action.key, action.input)
         if (nextAction) return next(nextAction)
         break
@@ -261,7 +262,7 @@ FSM.prototype.middleware = function () {
         const nextInput = fsmState.inputBuffer.last()
         if (nextInput) {
           next(self._updateBuffer(fsmState.inputBuffer.pop()))
-          const nextAction = self._handleInput(
+          nextAction = self._handleInput(
                       store.getState, store.dispatch, action.key, nextInput)
           if (nextAction) return next(nextAction)
         }
