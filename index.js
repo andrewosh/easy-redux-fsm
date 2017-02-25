@@ -61,10 +61,12 @@ function FSM (key: string, description: FSMDescription, options?: FSMOptions) {
 FSM.prototype._buildIndex = function () {
   this.index = {}
   this.index[FSM.States.START] = {
+    _fullName: FSM.States.START,
     name: FSM.States.START,
     children: this.description
   }
   this.index[FSM.States.END] = {
+    _fullName: FSM.States.END,
     name: FSM.States.END
   }
 
@@ -147,18 +149,28 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
   }
 
   // If a state doesn't specify any successors, immediately transition to END.
-  if (!node.next && (!node.children || node.children.length === 0)) {
-    return this._transition(FSM.States.END)
+  if (!node.children || node.children.length === 0) {
+    return this._transitioned(FSM.States.END)
   }
   // If a state specifies an invalid successor, immediately transition to END.
   if (node.next && !this.index[node.next]) {
     console.warn('Attempting to transition into an invalid state:', node.next)
-    return this._transition(FSM.States.END)
+    return this._transitioned(FSM.States.END)
   }
 
-  const successor = (node.next) ? this.index[node.next] : _findMatchingChild(node.children, input)
+  const successor = _findMatchingChild(node.children, input)
   if (!successor) {
     throw new Error('Could not find a valid successor state for input: ' + input)
+  }
+
+  var nextState = successor._fullName
+  if (successor.next) {
+    if (!this.index[successor.next]) {
+      console.warn('Attempting to transition into an invalid state:', successor.next)
+      nextState = FSM.States.END
+    } else {
+      nextState = this.index[successor.next]._fullName
+    }
   }
 
   const promise = successor.action(getState, dispatch)
@@ -168,16 +180,16 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     }
     const self = this
     promise.then(function (res) {
-      dispatch(self._transitioned(successor._fullName))
+      dispatch(self._transitioned(nextState))
     })
     promise.catch(function (err) {
       // TODO: handle error?
       console.error(err)
-      dispatch(self._transitioned(successor._fullName))
+      dispatch(self._transitioned(nextState))
     })
     return this._transitioning()
   }
-  dispatch(this._transitioned(successor._fullName))
+  dispatch(this._transitioned(nextState))
 }
 
 /**

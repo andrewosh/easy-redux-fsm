@@ -34,7 +34,7 @@ test('single machine, single state, synchronous write', function (t) {
     action: function () {
       numInvocations++
     },
-    next: 'StateA'
+    next: fsm.States.START
   }]
   const store = createTestStores([
     {
@@ -62,7 +62,7 @@ test('single machine, single state, asynchronous write', function (t) {
         }, 100)
       })
     },
-    next: 'StateA'
+    next: fsm.States.START
   }]
   const store = createTestStores([
     {
@@ -92,38 +92,38 @@ test('single machine, three states, ordered asynchronous write', function (t) {
         }, 100)
       })
     },
-    next: 'StateB'
-  },
-    {
-      name: 'StateB',
-      action: function () {
-        return new Promise(function (resolve, reject) {
-          setTimeout(function () {
-            output += 'b'
-            resolve()
-          }, 100)
-        })
-      },
-      next: 'StateC'
-    },
-    {
-      name: 'StateC',
-      action: function () {
-        return new Promise(function (resolve, reject) {
-          setTimeout(function () {
-            output += 'c'
-            resolve()
-          }, 100)
-        })
-      }
-    }]
+    children: [
+      {
+        name: 'StateB',
+        action: function () {
+          return new Promise(function (resolve, reject) {
+            setTimeout(function () {
+              output += 'b'
+              resolve()
+            }, 100)
+          })
+        },
+        children: [
+          {
+            name: 'StateC',
+            action: function () {
+              return new Promise(function (resolve, reject) {
+                setTimeout(function () {
+                  output += 'c'
+                  resolve()
+                }, 100)
+              })
+            }
+          }]
+      }]
+  }]
   const store = createTestStores([
     {
       key: 'fsm1',
       description: description
     }
   ])
-  for (var i = 0; i < description.length; i++) {
+  for (var i = 0; i < 3; i++) {
     store.dispatch(fsm.handleInput('fsm1', 'hello!'))
   }
   setTimeout(function () {
@@ -145,21 +145,21 @@ test('single machine, two states, mixed sync and async', function (t) {
         }, 100)
       })
     },
-    next: 'StateB'
-  },
-    {
-      name: 'StateB',
-      action: function () {
-        output += 'b'
-      }
-    }]
+    children: [
+      {
+        name: 'StateB',
+        action: function () {
+          output += 'b'
+        }
+      }]
+  }]
   const store = createTestStores([
     {
       key: 'fsm1',
       description: description
     }
   ])
-  for (var i = 0; i < description.length; i++) {
+  for (var i = 0; i < 2; i++) {
     store.dispatch(fsm.handleInput('fsm1', 'hello!'))
   }
   setTimeout(function () {
@@ -169,7 +169,7 @@ test('single machine, two states, mixed sync and async', function (t) {
 })
 
 test('single machine, multiple children, mixed sync and async', function (t) {
-  const desiredOutput = 'acab'
+  const desiredOutput = 'accb'
   var output = ''
   const description = [{
     name: 'StateA',
@@ -207,7 +207,7 @@ test('single machine, multiple children, mixed sync and async', function (t) {
   ])
   store.dispatch(fsm.handleInput('fsm1', 'first hello!'))
   store.dispatch(fsm.handleInput('fsm1', 'caaaab'))
-  store.dispatch(fsm.handleInput('fsm1', 'second hello!'))
+  store.dispatch(fsm.handleInput('fsm1', 'caaaab'))
   store.dispatch(fsm.handleInput('fsm1', 'c'))
   setTimeout(function () {
     t.equal(desiredOutput, output)
@@ -223,7 +223,7 @@ test('multiple machines, single state, synchronous', function (t) {
     action: function () {
       numInvocations++
     },
-    next: 'StateA'
+    next: fsm.States.START
   }]
   const store = createTestStores([
     {
@@ -257,21 +257,19 @@ test('multiple machines, multiple states, asynchronous', function (t) {
         }, 100)
       })
     },
-    next: 'StateB'
-  },
-    {
-      name: 'StateB',
-      action: function () {
-        return new Promise(function (resolve, reject) {
-          setTimeout(function () {
-            output1 += 'b'
-            resolve()
-          }, 100)
-        })
-      },
-      next: 'StateC'
-    }
-  ]
+    children: [
+      {
+        name: 'StateB',
+        action: function () {
+          return new Promise(function (resolve, reject) {
+            setTimeout(function () {
+              output1 += 'b'
+              resolve()
+            }, 100)
+          })
+        }
+      }]
+  }]
   const description2 = [{
     name: 'StateA',
     action: function () {
@@ -282,21 +280,19 @@ test('multiple machines, multiple states, asynchronous', function (t) {
         }, 100)
       })
     },
-    next: 'StateB'
-  },
-    {
-      name: 'StateB',
-      action: function () {
-        return new Promise(function (resolve, reject) {
-          setTimeout(function () {
-            output2 += 'b'
-            resolve()
-          }, 100)
-        })
-      },
-      next: 'StateC'
-    }
-  ]
+    children: [
+      {
+        name: 'StateB',
+        action: function () {
+          return new Promise(function (resolve, reject) {
+            setTimeout(function () {
+              output2 += 'b'
+              resolve()
+            }, 100)
+          })
+        }
+      }]
+  }]
 
   const store = createTestStores([
     {
