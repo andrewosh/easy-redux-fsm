@@ -173,7 +173,7 @@ FSM.prototype._handleInput = function (getState, dispatch, key, input) {
     }
   }
 
-  const promise = successor.action(getState, dispatch)
+  const promise = successor.action(getState, dispatch, input)
   if (promise) {
     if (!(promise instanceof Promise)) {
       throw new Error('Action must return null or a Promise.')
