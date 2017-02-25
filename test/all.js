@@ -215,3 +215,31 @@ test('single machine, multiple children, mixed sync and async', function (t) {
     t.end()
   }, 600)
 })
+
+test('multiple machines, single state, synchronous', function (t) {
+  const desiredInvocations = 6
+  var numInvocations = 0
+  const description = [{
+    name: 'StateA',
+    action: function () {
+      numInvocations++
+    },
+    next: 'StateA'
+  }]
+  const store = createTestStores([
+    {
+      key: 'fsm1',
+      description: description
+    },
+    {
+      key: 'fsm2',
+      description: description
+    }
+  ])
+  for (var i = 0; i < 3; i++) {
+    store.dispatch(fsm.handleInput('fsm1', 'hello!'))
+    store.dispatch(fsm.handleInput('fsm2', 'hello!'))
+  }
+  t.equal(desiredInvocations, numInvocations)
+  t.end()
+})
