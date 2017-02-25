@@ -1,4 +1,5 @@
 # easy-redux-fsm
+[![CircleCI](https://circleci.com/gh/andrewosh/easy-redux-fsm/tree/master.svg?style=svg)](https://circleci.com/gh/andrewosh/easy-redux-fsm/tree/master)
 > Specify action creators as a state/transition graph
 
 ## Overview
