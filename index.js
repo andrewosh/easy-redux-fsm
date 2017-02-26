@@ -227,8 +227,7 @@ FSM.prototype.reducer = function () {
       case FSM.Actions._UPDATE_BUFFER:
         return state.set('inputBuffer', action.buffer)
       default:
-        return state
-    }
+        return state }
   }
 }
 
