@@ -106,15 +106,13 @@ const store = createStore(
   applyMiddleware(machine.middleware())
 )
 
-store.dispatch({
-  type: fsm.actions.TRANSITION,
+store.dispatch(fsm.handleInput(
   key: 'fsm1',
   input: 'b'
 })
 // 'b' is logged
 
-store.dispatch({
-  type: fsm.actions.TRANSITION,
+store.dispatch(fsm.handleInput(
   key: 'fsm1',
   input: 'blahblah'
 })
@@ -129,16 +127,16 @@ npm i easy-redux-fsm --save
 
 ## API
 #### `new FSM(key, description)`
-`key` - a unique identifier for this state machine
-`description` - a machine description that defines states as objects
+* `key` - a unique identifier for this state machine
+* `description` - a machine description that defines states as objects
   with the above.
 
 Constructs a new FSM with ID `key`, described by `description` (see the beefy
   example for a complete description of the available properties)
 
 #### `fsm.handleInput(key, input)`
-`key` {string} - the state machine that should handle input
-`input` {string} - the input that will be passed to the FSM's transition function
+* `key` {string} - the state machine that should handle input
+* `input` {string} - the input that will be passed to the FSM's transition function
 
 Creates an action that can be dispatched to a Redux store to pass `input`
 to the FSM specified by `key`.
